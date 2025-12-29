@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pastebin-Lite
 
-## Getting Started
+A high-performance, serverless Pastebin clone built to handle ephemeral text storage with dual-constraint logic (TTL and View Limits). This project was developed as a technical assessment for a Data Engineering role.
 
-First, run the development server:
+## 🚀 Deployed Application
+**URL:** https://pastebin-lite-hrgjx4tfl-piscesaustrinus-projects.vercel.app
 
+---
+
+## 🛠 Tech Stack & Design Decisions
+
+### Persistence Layer: Upstash Redis
+I chose **Upstash Redis** as the persistence layer for several strategic reasons:
+* **Serverless Compatibility:** Unlike in-memory storage, Redis persists data across stateless Vercel function executions.
+* **Atomic Operations:** I utilized `HINCRBY` to manage view counts. This ensures that even under concurrent load, the "max views" constraint is enforced accurately without race conditions.
+* **Performance:** Redis offers sub-millisecond latency, allowing the `/api/healthz` endpoint to respond quickly as required.
+
+
+
+### Key Design Decisions
+* **Deterministic Time Testing:** Implemented a helper function `getNow()` that prioritizes the `x-test-now-ms` header when `TEST_MODE=1` is active, allowing for reliable automated expiry testing.
+* **Hybrid Routing:** * `/api/pastes/[id]` provides raw data and metadata for programmatic access.
+    * `/p/[id]` provides a clean, server-rendered HTML view for end-users.
+* **Security:** Content is rendered safely in Next.js to ensure arbitrary text is displayed without risk of script execution.
+
+---
+
+## 💻 Local Development
+
+Follow these steps to run the project on your machine:
+
+### 1. Prerequisites
+* Node.js (v18 or higher)
+* An Upstash Redis database account
+
+### 2. Installation
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+git clone [https://github.com/piscesaustrinus/pastebin-lite.git](https://github.com/piscesaustrinus/pastebin-lite.git)
+cd pastebin-lite
+npm install
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Environment Setup
+Create a file named .env.local in the root of the project and add your Upstash credentials:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Plaintext
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+UPSTASH_REDIS_REST_URL=your_upstash_redis_url
+UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
+TEST_MODE=1
+4. Available Commands
+Development Mode: npm run dev (Starts the app on http://localhost:3000)
 
-## Learn More
+Production Build: npm run build (Compiles the Next.js application)
 
-To learn more about Next.js, take a look at the following resources:
+Production Start: npm run start (Runs the built application)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+🧪 API Documentation
+Health Check
+GET /api/healthz
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Returns {"ok": true} if the persistence layer is reachable.
 
-## Deploy on Vercel
+Create a Paste
+POST /api/pastes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Required Body: { "content": "string" }
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Optional: ttl_seconds (int), max_views (int)
+
+Fetch Metadata (API)
+GET /api/pastes/:id
+
+View Paste (HTML)
+GET /p/:id
+
+📁 Repository Requirements Check
+[x] README.md at root with description and local setup.
+
+[x] No Secrets: Credentials managed via environment variables.
+
+[x] No Global Mutable State: Persistence handled entirely by Redis.
+
+[x] Safe Rendering: XSS protection implemented via standard React/Next.js rendering patterns.
