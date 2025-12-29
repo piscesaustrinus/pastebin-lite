@@ -3,29 +3,32 @@ import { NextResponse } from 'next/server';
 
 export async function GET(
   req: Request, 
-  { params }: { params: Promise<{ id: string }> } // Change this to Promise
+  { params }: { params: Promise<{ id: string }> } 
 ) {
-  const { id } = await params; // Await the params here
+  // 1. Await params (Fixes the Vercel Build Error)
+  const { id } = await params; 
+  
   const data = (await redis.hgetall(`paste:${id}`)) as unknown as PasteData;
 
   if (!data || !data.content) {
     return NextResponse.json({ error: "Not Found" }, { status: 404 });
   }
 
+  // 2. Pass the headers correctly
   const now = getNow(req.headers);
 
-  // Expiry check
+  // 3. Expiry check
   if (data.expires_at && now > data.expires_at) {
     await redis.del(`paste:${id}`);
     return NextResponse.json({ error: "Not Found" }, { status: 404 });
   }
 
-  // View limit check
+  // 4. View limit check
   if (data.max_views && data.current_views >= data.max_views) {
     return NextResponse.json({ error: "Not Found" }, { status: 404 });
   }
 
-  // Atomically increment views
+  // 5. Atomic view increment (The "Data Engineer" way)
   const newViews = await redis.hincrby(`paste:${id}`, "current_views", 1);
 
   return NextResponse.json({
